@@ -48,12 +48,28 @@ st.markdown("""
 st.title("🌀 Cyclone Intensity CV Estimator")
 st.markdown("Automated Early Warning Dashboard using Deep Learning on INSAT-3D/TCIR Infrared Imagery")
 
+import urllib.request
+
 # --- Load Model ---
 @st.cache_resource
 def load_model():
     model_path = 'best_cyclone_model.keras'
+    
+    # In Streamlit Cloud, Git LFS files are often just 130-byte pointer files.
+    # If the file is missing or is a tiny pointer, download the real model from Github.
+    if not os.path.exists(model_path) or os.path.getsize(model_path) < 1000:
+        url = "https://github.com/ASIKKANI/cyclone_prediction_CNN/raw/main/best_cyclone_model.keras"
+        try:
+            # We don't have st.spinner inside a cached function usually, but it works
+            urllib.request.urlretrieve(url, model_path)
+        except Exception as e:
+            return None
+            
     if os.path.exists(model_path):
-        return tf.keras.models.load_model(model_path)
+        try:
+            return tf.keras.models.load_model(model_path)
+        except:
+            return None
     return None
 
 model = load_model()
