@@ -64,27 +64,32 @@ data_source = st.sidebar.radio("Image Source", ["Load Sample from TCIR Dataset",
 
 # --- Helper Functions ---
 @st.cache_data
-def load_sample_from_h5(index=None):
-    """Loads a sample from the HDF5 file."""
+def load_random_sample():
+    """Loads a sample from HDF5 if available, otherwise falls back to local .npz samples."""
     data_path = 'TCIR-ALL_2017.h5'
-    if not os.path.exists(data_path):
-        return None, None
-        
-    with h5py.File(data_path, 'r') as hf:
-        data_matrix = hf['matrix']
-        total_samples = data_matrix.shape[0]
-        
-        if index is None:
-            index = np.random.randint(0, total_samples)
-            
-        # Get the IR1 channel (index 0)
-        img_ir = data_matrix[index, :, :, 0]
-        
-    # Get ground truth label
-    data_info = pd.read_hdf(data_path, key='info', mode='r')
-    true_wind = data_info['Vmax'].iloc[index]
     
-    return img_ir, true_wind
+    # Try loading from the full 3GB dataset first
+    if os.path.exists(data_path):
+        with h5py.File(data_path, 'r') as hf:
+            data_matrix = hf['matrix']
+            total_samples = data_matrix.shape[0]
+            index = np.random.randint(0, total_samples)
+            img_ir = data_matrix[index, :, :, 0]
+            
+        data_info = pd.read_hdf(data_path, key='info', mode='r')
+        true_wind = data_info['Vmax'].iloc[index]
+        return img_ir, true_wind
+    
+    # Fallback to small local samples (for Github/Friends)
+    samples_dir = 'samples'
+    if os.path.exists(samples_dir):
+        sample_files = [f for f in os.listdir(samples_dir) if f.endswith('.npz')]
+        if sample_files:
+            chosen_file = np.random.choice(sample_files)
+            data = np.load(os.path.join(samples_dir, chosen_file))
+            return data['image'], data['label']
+            
+    return None, None
 
 def preprocess_image(img):
     """Preprocesses the image for the CNN."""
@@ -104,12 +109,12 @@ true_wind = None
 
 if data_source == "Load Sample from TCIR Dataset":
     if st.sidebar.button("Fetch Random Cyclone"):
-        img_ir, true_wind = load_sample_from_h5()
+        img_ir, true_wind = load_random_sample()
         if img_ir is not None:
             st.session_state['img_ir'] = img_ir
             st.session_state['true_wind'] = true_wind
         else:
-            st.error("TCIR-ALL_2017.h5 not found in the current directory. Please make sure the dataset is downloaded.")
+            st.error("No dataset or samples found. Please check your repository.")
             
     # Load from session state to persist across reruns
     if 'img_ir' in st.session_state:
