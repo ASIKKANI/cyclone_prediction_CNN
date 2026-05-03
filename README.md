@@ -15,7 +15,7 @@ This repository was built for the AI for Social Good Hackathon, addressing **SDG
    ```bash
    pip install -r requirements.txt
    ```
-3. Run the Streamlit Dashboard:
+3. Run the Streamlit Dashboard:  
    ```bash
    streamlit run app.py
    ```
